@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 """
-Assistant Voyage V4 — produit perso + architecture API
-=====================================================
+Assistant Voyage V4.1 — produit perso + architecture API + secrets cloud
+=======================================================================
 
 Objectifs :
 - mémoire locale du profil utilisateur
 - suggestions dynamiques de destinations
 - comparaison multi-destinations
 - scoring global : destination + vols + hôtels + fatigue + logistique
-- UX plus propre avec onglets
+- UX en onglets
+- lecture robuste des secrets en local et sur Streamlit Cloud
 - architecture prête pour Skyscanner (vols) et Expedia Rapid (hôtels)
 - mode démo si API non configurée
 
@@ -23,7 +24,7 @@ Lancement :
 from dataclasses import dataclass, asdict, field
 from datetime import date, datetime, time
 from pathlib import Path
-from typing import List, Optional, Literal, Dict, Tuple
+from typing import List, Optional, Literal, Dict, Tuple, Any
 import hashlib
 import json
 import os
@@ -40,6 +41,7 @@ APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 PROFILE_PATH = DATA_DIR / "user_profile.json"
+REQUEST_TIMEOUT_SECONDS = 20
 
 TravelerPace = Literal["slow", "balanced", "intense"]
 CabinType = Literal["economy", "premium_economy", "business", "any"]
@@ -211,6 +213,18 @@ def classify_time_window(dt: datetime) -> str:
     return "night"
 
 
+def get_secret(name: str, default: Optional[str] = None) -> Optional[str]:
+    env_value = os.getenv(name)
+    if env_value:
+        return env_value
+    try:
+        if name in st.secrets:
+            return str(st.secrets[name])
+    except Exception:
+        pass
+    return default
+
+
 def load_profile() -> UserProfile:
     if PROFILE_PATH.exists():
         try:
@@ -320,7 +334,7 @@ class DestinationAdvisor:
 
 
 # =========================================================
-# API clients (stubs ready)
+# API clients (live-ready structure)
 # =========================================================
 
 class SkyscannerClient:
@@ -333,7 +347,8 @@ class SkyscannerClient:
     def search_flights_live(self, req: TripRequest, destination_airport: str) -> List[FlightOption]:
         if not self.is_configured():
             return []
-        # Stub prêt pour vrai mapping API
+        # Intégration live à brancher quand les accès partenaires seront activés.
+        # Gardé volontairement en stub pour éviter des appels faux ou incomplets.
         return []
 
 
@@ -357,10 +372,9 @@ class ExpediaRapidClient:
         }
 
     def search_hotels(self, d: DestinationInsight, checkin: date, checkout: date) -> List[HotelOption]:
-        nights = max((checkout - checkin).days, 1)
         if not self.is_configured():
             return []
-        # Stub prêt pour flow Geography -> Properties -> Shopping
+        # Intégration live à brancher quand les accès partenaires seront activés.
         return []
 
 
@@ -545,8 +559,8 @@ class TravelPlanner:
     def __init__(self, request: TripRequest):
         self.request = request
         self.scorer = TravelScorer(request)
-        self.sky = SkyscannerClient(os.getenv("SKYSCANNER_API_KEY"))
-        self.expedia = ExpediaRapidClient(os.getenv("EXPEDIA_RAPID_API_KEY"), os.getenv("EXPEDIA_RAPID_SHARED_SECRET"))
+        self.sky = SkyscannerClient(get_secret("SKYSCANNER_API_KEY"))
+        self.expedia = ExpediaRapidClient(get_secret("EXPEDIA_RAPID_API_KEY"), get_secret("EXPEDIA_RAPID_SHARED_SECRET"))
 
     def get_flights(self, destination_airport: str) -> List[FlightOption]:
         flights = self.sky.search_flights_live(self.request, destination_airport)
@@ -565,16 +579,6 @@ class TravelPlanner:
                 plans.append(self.scorer.combine(d, f, h))
         plans.sort(key=lambda p: p.score, reverse=True)
         return plans[0] if plans else None
-
-    def top_plans_for_destination(self, d: DestinationInsight, top_n: int = 5) -> List[TravelPlan]:
-        flights = self.get_flights(d.airport_code)
-        hotels = self.get_hotels(d)
-        plans: List[TravelPlan] = []
-        for f in flights:
-            for h in hotels:
-                plans.append(self.scorer.combine(d, f, h))
-        plans.sort(key=lambda p: p.score, reverse=True)
-        return plans[:top_n]
 
 
 # =========================================================
@@ -699,7 +703,7 @@ with tab3:
         compare_rows = []
         plans_by_name: Dict[str, TravelPlan] = {}
         progress = st.progress(0)
-        for i, (dest_score_raw, d) in enumerate(suggestions, start=1):
+        for i, (_, d) in enumerate(suggestions, start=1):
             best = planner.best_plan_for_destination(d)
             if best:
                 key = f"{d.destination_city}, {d.destination_country}"
@@ -717,7 +721,7 @@ with tab3:
                 })
             progress.progress(i / len(suggestions))
         compare_df = pd.DataFrame(compare_rows).sort_values(by=["score global", "prix total"], ascending=[False, True])
-        st.dataframe(compare_df, use_container_width=True, hide_index=True)
+        st.dataframe(compare_df, width="stretch", hide_index=True)
         st.session_state["plans_by_name"] = plans_by_name
         if not compare_df.empty:
             st.success(f"Top destination actuelle : {compare_df.iloc[0]['destination']}")
@@ -753,7 +757,7 @@ with tab4:
                 {"critère": "bord de mer", "score": d.seaside_score},
                 {"critère": "gastronomie", "score": d.food_score},
                 {"critère": "romantique", "score": d.romance_score},
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
 
         st.markdown("### Meilleure combinaison actuelle")
         p = selected_plan
@@ -786,7 +790,15 @@ with api_cols[0]:
         {"service": "Skyscanner Flights API", "état": "configurée" if planner_for_status.sky.is_configured() else "mode démo"},
         {"service": "Expedia Rapid Lodging API", "état": "configurée" if planner_for_status.expedia.is_configured() else "mode démo"},
     ])
-    st.dataframe(api_df, use_container_width=True, hide_index=True)
+    st.dataframe(api_df, width="stretch", hide_index=True)
 with api_cols[1]:
     st.subheader("Fichier profil")
     st.code(str(PROFILE_PATH))
+    st.markdown("**Clés attendues pour le mode live**")
+    st.code(
+        "SKYSCANNER_API_KEY = \"...\"
+"
+        "EXPEDIA_RAPID_API_KEY = \"...\"
+"
+        "EXPEDIA_RAPID_SHARED_SECRET = \"...\""
+    )
