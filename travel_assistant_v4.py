@@ -1,3 +1,4 @@
+    from __future__ import annotations
 import base64
 
 def set_background():
@@ -16,8 +17,6 @@ def set_background():
     }}
     </style>
     """, unsafe_allow_html=True)
-    from __future__ import annotations
-
 """
 Assistant Voyage V4.1 — produit perso + architecture API + secrets cloud
 =======================================================================
