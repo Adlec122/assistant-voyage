@@ -604,6 +604,7 @@ class TravelPlanner:
 
 profile = load_profile()
 st.set_page_config(page_title="Assistant Voyage V4", layout="wide")
+set_background()
 st.title("✈️ Assistant Voyage V4")
 st.caption("Outil perso puissant + architecture produit/API")
 
