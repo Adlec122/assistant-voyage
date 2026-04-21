@@ -1,19 +1,32 @@
 from __future__ import annotations
 import base64
+from pathlib import Path
 
 def set_background():
-    with open("background.png", "rb") as f:
-        data = base64.b64encode(f.read()).decode()
+    image_path = Path(__file__).resolve().parent / "background.png"
+
+    if image_path.exists():
+        data = base64.b64encode(image_path.read_bytes()).decode()
+        bg_css = f"""
+        background-image:
+            linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.15)),
+            url("data:image/png;base64,{data}");
+        """
+    else:
+        bg_css = """
+        background-image:
+            linear-gradient(rgba(8, 23, 42, 0.45), rgba(8, 23, 42, 0.20)),
+            linear-gradient(135deg, #0b3d5c 0%, #1572a1 28%, #36a2c8 52%, #f4c06a 78%, #f7e2b0 100%);
+        """
 
     st.markdown(f"""
     <style>
     .stApp {{
-        background-image:
-            linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.15)),
-            url("data:image/png;base64,{data}");
+        {bg_css}
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
+        background-repeat: no-repeat;
     }}
     </style>
     """, unsafe_allow_html=True)
