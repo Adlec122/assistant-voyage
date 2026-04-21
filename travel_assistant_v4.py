@@ -1,4 +1,22 @@
-from __future__ import annotations
+import base64
+
+def set_background():
+    with open("background.png", "rb") as f:
+        data = base64.b64encode(f.read()).decode()
+
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image:
+            linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.15)),
+            url("data:image/png;base64,{data}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+    from __future__ import annotations
 
 """
 Assistant Voyage V4.1 — produit perso + architecture API + secrets cloud
