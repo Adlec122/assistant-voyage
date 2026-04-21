@@ -795,10 +795,8 @@ with api_cols[1]:
     st.subheader("Fichier profil")
     st.code(str(PROFILE_PATH))
     st.markdown("**Clés attendues pour le mode live**")
-    st.code(
-        "SKYSCANNER_API_KEY = \"...\"
-"
-        "EXPEDIA_RAPID_API_KEY = \"...\"
-"
-        "EXPEDIA_RAPID_SHARED_SECRET = \"...\""
-    )
+    secrets_example = """SKYSCANNER_API_KEY = "..."
+EXPEDIA_RAPID_API_KEY = "..."
+EXPEDIA_RAPID_SHARED_SECRET = "..."
+"""
+    st.code(secrets_example)
