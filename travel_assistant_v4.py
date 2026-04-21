@@ -790,4 +790,3 @@ with api_cols[0]:
 with api_cols[1]:
     st.subheader("Fichier profil")
     st.code(str(PROFILE_PATH))
-add travel assistant v4
